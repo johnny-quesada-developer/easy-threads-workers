@@ -1,62 +1,57 @@
 import { EasyWebWorkerMessage } from './EasyWebWorkerMessage';
 import { getWorkerTemplate, generatedId } from './EasyWebWorkerFixtures';
-import { CancelablePromise, toCancelablePromise } from 'cancelable-promise-jq';
+import {
+  CancelablePromise,
+  groupAsCancelablePromise,
+} from 'cancelable-promise-jq';
+import {
+  WorkerOptions,
+  Worker,
+  TransferListItem,
+  MessagePort,
+} from 'node:worker_threads';
+
+type DedicatedWorkerGlobalScope<TData = any> = {
+  parentPort: MessagePort;
+  isMainThread: boolean;
+  workerData: TData;
+};
 
 /**
  * EasyWorker Config
  * */
 export interface IWorkerConfig<TPrimitiveParameters extends any[] = unknown[]> {
-  /**
-   **  External scripts that you want to include in your worker
-   */
-  scripts: string[];
-
-  /**
-   **  Identifier of your worker, this is in case you want to add a name to your worker file, otherwise an unique generic Id will be added as a name
-   */
-  name: string;
-
-  workerOptions?: WorkerOptions;
+  workerOptions: WorkerOptions;
 
   /**
    * Callback that will be executed when the worker fails, this not necessary affect the current message execution
    * */
-  onWorkerError: (error: ErrorEvent) => void;
-
-  /**
-   * Url of the worker file, this is reserver for EasyWebWorker created from a Worker Instance
-   */
-  url?: string;
+  onWorkerError: (error: Error) => void;
 
   /**
    * Maximum quantity of workers that will be created, default is 4
    */
-  maxWorkers?: number;
+  maxWorkers: number;
   /**
    * Indicates if the worker should be kept alive after the message is completed
    * otherwise, the workers will be terminated after a configured delay has passed and there is no messages in the queue
    */
-  keepAlive?: boolean;
+  keepAlive: boolean;
   /**
    * Quantity of milliseconds to wait before terminating the worker if there is no messages in the queue
    */
-  terminationDelay?: number;
+  terminationDelay: number;
 
   /**
    * Indicates whenever the maximum quantity of workers should be created at the initialization of the easy web worker,
    * If warmUp is true keepAlive will be set to true
    */
-  warmUpWorkers?: boolean;
+  warmUpWorkers: boolean;
 
   /**
    * Allows to pass static primitive parameters to the worker
    */
-  primitiveParameters?: TPrimitiveParameters;
-
-  /**
-   * Allows to override the worker file origin
-   */
-  origin?: string;
+  primitiveParameters: TPrimitiveParameters;
 }
 
 export interface IWorkerData<IPayload> {
@@ -103,7 +98,7 @@ export interface IMessageData<IPayload = null> {
   /**
    * When present, this means that the message was canceled from inside the worker
    * */
-  readonly worker_canceled?: { reason: unknown };
+  readonly worker_cancelation?: { reason: unknown };
 
   /**
    * When present, this means that the should report the progress
@@ -133,10 +128,7 @@ export interface IEasyWorkerInstance<TPayload = null, TResult = void> {
    * @param {MessageEvent} callback.event - This is the event that was received
    * */
   onMessage(
-    callback: (
-      message: IEasyWebWorkerMessage<TPayload, TResult>,
-      event: MessageEvent<IMessageData<TPayload>>
-    ) => void
+    callback: (message: IEasyWebWorkerMessage<TPayload, TResult>) => void
   ): void;
 
   /**
@@ -153,16 +145,8 @@ export interface IEasyWorkerInstance<TPayload = null, TResult = void> {
    * */
   onMessage<TPayload_ = null, TResult_ = void>(
     method: string,
-    callback: (
-      message: IEasyWebWorkerMessage<TPayload_, TResult_>,
-      event: MessageEvent<IMessageData<TPayload_>>
-    ) => void
+    callback: (message: IEasyWebWorkerMessage<TPayload_, TResult_>) => void
   ): void;
-
-  /**
-   * Import scripts to the worker
-   */
-  importScripts(...scripts: string[]): void;
 
   /**
    * This method reject all the messages that are currently in the queue of the worker and close the worker
@@ -202,6 +186,8 @@ export type EasyWebWorkerBody<
 ) => void;
 
 export interface IEasyWebWorkerMessage<TPayload = null, TResult = void> {
+  method?: string;
+
   /**
    * This is the message id
    */
@@ -215,38 +201,43 @@ export interface IEasyWebWorkerMessage<TPayload = null, TResult = void> {
   /**
    * This method is used to reject the message from inside the worker
    * */
-  readonly reject: (reason?: unknown) => void;
+  readonly reject: (reason?: unknown, transfer?: TransferListItem) => void;
 
   /**
    * This method is used to report the progress of the message from inside the worker
    * */
-  readonly reportProgress: (percentage: number, payload?: unknown) => void;
+  readonly reportProgress: (
+    percentage: number,
+    payload?: unknown,
+    transfer?: TransferListItem
+  ) => void;
 
   /**
    * This method is used to resolve the message from inside the worker
    * */
   readonly resolve: [TResult] extends [void]
     ? () => void
-    : (payload: TResult) => void;
+    : (payload: TResult, transfer?: TransferListItem) => void;
 
   /**
    * This method is used to cancel the message from inside the worker
    * */
-  readonly cancel: (reason?: unknown) => void;
+  readonly cancel: (reason?: unknown, transfer?: TransferListItem) => void;
 
   /**
    * Thus method is used to subscribe to the cancel event from the main thread
    */
   readonly onCancel: (callback: (reason?: unknown) => void) => void;
+
+  /**
+   * This method is used to get the current status of the message
+   */
+  readonly getStatus: () => 'pending' | 'resolved' | 'rejected' | 'canceled';
+
+  readonly isPending: () => boolean;
 }
 
-const getImportScriptsTemplate = (scripts: string[] = []) => {
-  if (!scripts.length) return '';
-
-  return `self.importScripts(["${scripts.join('","')}"]);`;
-};
-
-export const createBlobWorker = <
+export const createWorkerUrl = <
   IPayload = null,
   IResult = void,
   TPrimitiveParameters extends any[] = unknown[]
@@ -254,8 +245,6 @@ export const createBlobWorker = <
   source:
     | EasyWebWorkerBody<IPayload, IResult>
     | EasyWebWorkerBody<IPayload, IResult>[],
-  imports: string[] = [],
-  origin: string = '',
   {
     primitiveParameters = [] as TPrimitiveParameters,
   }: {
@@ -265,19 +254,19 @@ export const createBlobWorker = <
   const contentCollection: EasyWebWorkerBody<IPayload, IResult>[] =
     Array.isArray(source) ? source : [source];
 
-  const worker_content = `self.primitiveParameters=JSON.parse(\`${JSON.stringify(
+  const worker_content = `import { parentPort, isMainThread, workerData } from 'node:worker_threads';const primitiveParameters=JSON.parse(\`${JSON.stringify(
     primitiveParameters ?? []
-  )}\`);${getImportScriptsTemplate(
-    imports
-  )}${getWorkerTemplate()}${contentCollection
+  )}\`);let ew$=${getWorkerTemplate()};let cn$={parentPort,isMainThread,workerData};${contentCollection
     .map((content) => {
-      return `self.ew$=self.cw$("${origin}");(${content})(self.ew$, self);`;
+      return `(${content})(ew$,cn$);`;
     })
     .join('')}`;
 
-  return (window.URL || window.webkitURL).createObjectURL(
-    new Blob([worker_content], { type: 'application/javascript' })
-  );
+  const sourceString = `data:text/javascript;base64,${Buffer.from(
+    worker_content
+  ).toString('base64')}`;
+
+  return new URL(sourceString);
 };
 
 /**
@@ -298,51 +287,23 @@ export class EasyWebWorker<
   TResult = void,
   TPrimitiveParameters extends any[] = unknown[]
 > {
-  public name: string;
+  public workerUrl?: string | URL | null = null;
 
   /**
-   * @deprecated Directly modifying the worker may lead to unexpected behavior. Use it only if you know what you are doing.
+   * You could import scripts into your worker, this is useful if you want to use external libraries
    */
-  public get worker(): Worker {
-    return this.workers.length > 1 ? null : this.workers[0];
-  }
+  public config: Partial<IWorkerConfig<TPrimitiveParameters>> = null;
 
-  public maxWorkers: number = 1;
-
-  private workers: Worker[] = [];
-
-  public keepAlive: boolean = true;
-
-  public warmUpWorkers: boolean = false;
-
-  public terminationDelay: number = 1000;
-
-  public origin: string = '';
-
-  public primitiveParameters: TPrimitiveParameters = [] as TPrimitiveParameters;
-
-  public workerOptions?: WorkerOptions;
+  /**
+   * @deprecated Avoid direct access to the workers unless you know what you are doing
+   */
+  public workers: Worker[] = [];
 
   /**
    * These where send to the worker but not yet resolved
    */
-  private messagesQueue: Map<string, EasyWebWorkerMessage<unknown, unknown>> =
+  protected messagesQueue: Map<string, EasyWebWorkerMessage<unknown, unknown>> =
     new Map();
-
-  /**
-   * This is the URL of the worker file
-   */
-  public workerUrl: string = null;
-
-  /**
-   * This is the list of scripts that will be imported into the worker
-   */
-  public scripts: string[] = [];
-
-  /**
-   * This is the callback that will be executed when the worker throws an error
-   */
-  public onWorkerError: (error: ErrorEvent) => void;
 
   protected get isExternalWorkerFile(): boolean {
     return typeof this.source === 'string';
@@ -357,93 +318,158 @@ export class EasyWebWorker<
      */
     protected source:
       | EasyWebWorkerBody<TPayload, TResult>
-      | EasyWebWorkerBody<TPayload, TResult>[]
+      | EasyWebWorkerBody<any, any>[]
       | string
+      | URL
       | Worker
       | Worker[],
 
-    /**
-     * You could import scripts into your worker, this is useful if you want to use external libraries
-     */
-    {
-      scripts = [],
-      name,
-      onWorkerError = null,
-      url = null,
+    config: Partial<IWorkerConfig<TPrimitiveParameters>> = {}
+  ) {
+    this.workerUrl =
+      typeof source === 'string' || source instanceof URL ? source : null;
+
+    const {
       maxWorkers = 1,
       keepAlive: _keepAlive = null,
-      terminationDelay = 1000,
       warmUpWorkers: _warmUpWorkers = null,
-      primitiveParameters,
-      origin = '',
-      workerOptions,
-    }: Partial<IWorkerConfig<TPrimitiveParameters>> = {}
-  ) {
+      workerOptions = {},
+      onWorkerError = null,
+      terminationDelay = 1000,
+      primitiveParameters = [],
+    } = config ?? ({} as IWorkerConfig<TPrimitiveParameters>);
+
     const warmUpWorkers =
       !maxWorkers || maxWorkers === 1 ? true : _warmUpWorkers;
+
     const keepAlive = warmUpWorkers || (_keepAlive ?? false);
 
-    this.workerOptions = workerOptions ?? {};
-
-    this.name = this.workerOptions.name || name || generatedId();
-    this.scripts = scripts;
-    this.onWorkerError = onWorkerError;
-    this.workerUrl = url ?? null;
-    this.maxWorkers = maxWorkers;
-    this.keepAlive = keepAlive;
-    this.terminationDelay = terminationDelay;
-    this.warmUpWorkers = warmUpWorkers;
-
-    this.primitiveParameters = (primitiveParameters ??
-      []) as TPrimitiveParameters;
-
-    this.origin = origin;
+    this.config = {
+      maxWorkers,
+      keepAlive,
+      warmUpWorkers,
+      workerOptions: {
+        ...(workerOptions ?? {}),
+        name: workerOptions.name || generatedId(),
+      },
+      onWorkerError,
+      terminationDelay,
+      primitiveParameters: primitiveParameters as TPrimitiveParameters,
+    };
 
     this.computeWorkerBaseSource();
     this.warmUp();
   }
 
   private warmUp = () => {
-    if (!this.warmUpWorkers) return;
+    const { warmUpWorkers, maxWorkers } = this.config;
 
-    const { maxWorkers } = this;
+    if (!warmUpWorkers) return;
 
     new Array(maxWorkers).fill(null).forEach(() => this.getWorkerFromPool());
   };
 
+  private customEvents: {
+    event: string | symbol;
+    listener: (...args: any[]) => void;
+  }[] = [];
+
+  public addListener(event: 'error', listener: (err: Error) => void): this;
+  public addListener(event: 'exit', listener: (exitCode: number) => void): this;
+  public addListener(event: 'message', listener: (value: any) => void): this;
+  public addListener(
+    event: 'messageerror',
+    listener: (error: Error) => void
+  ): this;
+  public addListener(event: 'online', listener: () => void): this;
+  public addListener(
+    event: string | symbol,
+    listener: (...args: any[]) => void
+  ): this;
+  public addListener(
+    event: string | symbol,
+    listener: (...args: any[]) => void
+  ): this {
+    this.customEvents.push({ event, listener });
+
+    if (this.workers.length) {
+      this.workers.forEach((worker) => worker.addListener(event, listener));
+    }
+
+    return this;
+  }
+
+  removeListener(event: 'error', listener: (err: Error) => void): this;
+  removeListener(event: 'exit', listener: (exitCode: number) => void): this;
+  removeListener(event: 'message', listener: (value: any) => void): this;
+  removeListener(event: 'messageerror', listener: (error: Error) => void): this;
+  removeListener(event: 'online', listener: () => void): this;
+  removeListener(
+    event: string | symbol,
+    listener: (...args: any[]) => void
+  ): this;
+  removeListener(
+    event: string | symbol,
+    listener: (...args: any[]) => void
+  ): this {
+    this.customEvents = this.customEvents.filter(
+      (customEvent) =>
+        customEvent.event !== event && customEvent.listener !== listener
+    );
+
+    if (this.workers.length) {
+      this.workers.forEach((worker) => worker.removeListener(event, listener));
+    }
+
+    return this;
+  }
+
   private fillWorkerMethods = (worker: Worker) => {
-    worker.onmessage = (event: MessageEvent<IMessageData<TPayload>>) => {
-      this.executeMessageCallback(event);
-    };
+    worker.addListener('message', (data: IMessageData<TPayload>) => {
+      this.executeMessageCallback(data);
+    });
 
     /**
      * If not handled, the error will be thrown to the global scope
      */
-    worker.onerror = (reason) => {
-      if (!this.onWorkerError) throw reason;
+    worker.addListener('error', (reason) => {
+      const { onWorkerError } = this.config;
 
-      this.onWorkerError(reason);
-    };
+      if (!onWorkerError) throw reason;
+
+      onWorkerError(reason);
+    });
+
+    this.customEvents.forEach(({ event, listener }) => {
+      // remove the listener if it was already added
+      worker.removeListener(event, listener);
+
+      worker.addListener(event, listener);
+    });
 
     return worker;
   };
 
   private createNewWorker = () => {
-    let worker = new Worker(this.workerUrl, {
-      ...this.workerOptions,
-      name: (() => {
-        const { length } = this.workers;
-        if (length === 0) return this.name;
+    const { workerUrl } = this;
+    const { workerOptions } = this.config;
 
-        return `${this.name}-${length}`;
-      })(),
-    });
+    workerOptions.name = (() => {
+      const { length } = this.workers;
+      if (length === 0) return workerOptions.name;
+
+      return `${workerOptions.name}-${length}`;
+    })();
+
+    const worker = new Worker(workerUrl, workerOptions);
 
     return this.fillWorkerMethods(worker);
   };
 
   private getWorkerFromPool = (): Worker => {
-    const { maxWorkers, messagesQueue } = this;
+    const { maxWorkers } = this.config;
+
+    const { messagesQueue } = this;
     const messagesQueueSize = messagesQueue.size;
 
     // there are less workers than the maximum allowed, and there is messages in the queue
@@ -480,7 +506,8 @@ export class EasyWebWorker<
         };
       }
 
-      const isUrlBase = typeof this.source === 'string';
+      const isUrlBase =
+        typeof this.source === 'string' || this.source instanceof URL;
       const isFunctionTemplate = typeof this.source === 'function';
 
       if (isUrlBase || isFunctionTemplate) {
@@ -527,12 +554,12 @@ export class EasyWebWorker<
 
     this.workerUrl = workerUrl;
 
-    this.maxWorkers = isArrayOfWebWorkers
+    this.config.maxWorkers = isArrayOfWebWorkers
       ? this.workers.length
-      : this.maxWorkers;
+      : this.config.maxWorkers;
 
     // if the source is an array of web workers we need to keep them alive
-    this.keepAlive = isArrayOfWebWorkers ? true : this.keepAlive;
+    this.config.keepAlive = isArrayOfWebWorkers ? true : this.config.keepAlive;
   };
 
   private RemoveMessageFromQueue(messageId: string) {
@@ -542,12 +569,12 @@ export class EasyWebWorker<
   /**
    * Categorizes the worker response and executes the corresponding callback
    */
-  private executeMessageCallback(event: { data: IMessageData<TPayload> }) {
-    const message = this.messagesQueue.get(event.data.messageId) ?? null;
+  private executeMessageCallback(data: IMessageData<TPayload>) {
+    const message = this.messagesQueue.get(data.messageId) ?? null;
 
     if (!message) return;
 
-    const { progress } = event.data;
+    const { progress } = data;
 
     // workers were disposed before the message was resolved
     if (!this.workers.length) {
@@ -570,17 +597,18 @@ export class EasyWebWorker<
     // remove message from queue
     this.RemoveMessageFromQueue(message.messageId);
 
-    const { worker_canceled } = event.data;
+    const { worker_cancelation } = data;
 
-    if (worker_canceled) {
-      const { reason } = worker_canceled;
+    if (worker_cancelation) {
+      const { reason } = worker_cancelation;
 
-      decoupledPromise.reject(reason);
+      // avoid calling the overridden callback if the message was canceled from inside the worker
+      decoupledPromise._cancel(reason);
 
       return;
     }
 
-    const { rejected } = event.data;
+    const { rejected } = data;
 
     if (rejected) {
       const { reason } = rejected;
@@ -590,7 +618,7 @@ export class EasyWebWorker<
       return;
     }
 
-    const { resolved } = event.data;
+    const { resolved } = data;
     const { payload } = resolved;
 
     // resolve message with the serialized payload
@@ -601,19 +629,17 @@ export class EasyWebWorker<
     );
   }
 
-  protected getWorkerUrl(): string {
+  protected getWorkerUrl() {
     if (this.isExternalWorkerFile) {
       return this.source as string;
     }
 
-    return createBlobWorker<TPayload, TResult, TPrimitiveParameters>(
+    return createWorkerUrl<TPayload, TResult, TPrimitiveParameters>(
       this.source as
         | EasyWebWorkerBody<TPayload, TResult>
         | EasyWebWorkerBody<TPayload, TResult>[],
-      this.scripts,
-      this.origin ?? '',
       {
-        primitiveParameters: this.primitiveParameters,
+        primitiveParameters: this.config.primitiveParameters,
       }
     );
   }
@@ -624,28 +650,41 @@ export class EasyWebWorker<
    * @param {boolean} force - if true, the messages will be cancelled immediately without waiting for the worker to respond
    * This action will reboot the worker
    */
-  public cancelAll(reason?: unknown, { force = false } = {}) {
-    const messages = Array.from(this.messagesQueue.values());
-    const total = messages.length;
-    const percentage = 100 / total;
+  public cancelAll(
+    reason?: unknown,
+    { force = false } = {}
+  ): CancelablePromise<unknown[]> {
+    return new CancelablePromise<unknown[]>(
+      async (resolve, _, { onCancel, reportProgress }) => {
+        const messages = Array.from(this.messagesQueue?.values() ?? []);
+        const total = messages.length;
+        const percentage = 100 / total;
 
-    if (force) {
-      return this.reboot(reason);
-    }
+        if (force) {
+          return resolve(this.reboot(reason));
+        }
 
-    const rejectedPromises = messages.map((message) => {
-      const { decoupledPromise } = message;
-      const { promise } = decoupledPromise;
+        const resultsPromise = groupAsCancelablePromise(
+          messages.map((message) => {
+            const { decoupledPromise } = message;
+            const { promise } = decoupledPromise;
 
-      // promises are gonna be rejected so we need to wait until they are settled
-      return promise.cancel(reason).catch((error) => {
-        promise.reportProgress(percentage, error);
+            // promises are gonna be rejected so we need to wait until they are settled
+            return promise.cancel(reason).catch((error) => {
+              reportProgress(percentage, error);
 
-        return error;
-      });
-    });
+              return error;
+            });
+          })
+        );
 
-    return Promise.all(rejectedPromises);
+        onCancel(() => {
+          resultsPromise.cancel();
+        });
+
+        resolve(resultsPromise);
+      }
+    );
   }
 
   protected addMessageToQueue(message: EasyWebWorkerMessage<unknown, unknown>) {
@@ -663,7 +702,7 @@ export class EasyWebWorker<
   public sendToMethod<TResult_ = void, TPayload_ = null>(
     method: string,
     payload?: TPayload_,
-    transfer?: Transferable[]
+    transfer?: TransferListItem[]
   ): CancelablePromise<TResult_> {
     return this.sendToWorker<TPayload_, TResult_>(
       { method, payload },
@@ -678,7 +717,7 @@ export class EasyWebWorker<
    */
   public send = ((
     payload: TPayload,
-    transfer?: Transferable[]
+    transfer?: TransferListItem[]
   ): CancelablePromise<TResult> => {
     return this.sendToWorker<TPayload, TResult>({ payload }, transfer);
   }) as [TPayload] extends [null]
@@ -693,18 +732,15 @@ export class EasyWebWorker<
       payload?: TPayload_;
       method?: string;
     },
-    transfer?: Transferable[]
+    transfer?: TransferListItem[]
   ): CancelablePromise<TResult_> => {
     const message = new EasyWebWorkerMessage<TPayload_, TResult_>();
     const { messageId, decoupledPromise } = message;
 
-    const { cancel } = decoupledPromise;
-
     const worker = this.getWorkerFromPool();
 
     decoupledPromise.promise.cancel = (reason) => {
-      // restore the original cancel method so we can cancel the message when the worker response
-      decoupledPromise.cancel = cancel;
+      decoupledPromise.promise.cancel = decoupledPromise._cancel;
 
       // if the message is canceled, we need to send a cancelation message to the worker,
       // once the worker response, the message will be removed from the queue nad the promise will be canceled in the main thread
@@ -718,9 +754,7 @@ export class EasyWebWorker<
 
       // if the worker was disposed, we need to automatically reject the promise
       if (!this.workers.length) {
-        cancel(reason);
-
-        return toCancelablePromise(Promise.reject(reason));
+        return decoupledPromise.cancel(reason);
       }
 
       worker.postMessage(data, transfer);
@@ -728,7 +762,7 @@ export class EasyWebWorker<
       return decoupledPromise.promise;
     };
 
-    if (!this.keepAlive) {
+    if (!this.config.keepAlive) {
       decoupledPromise.promise?.finally?.(() => {
         setTimeout(() => {
           const { messagesQueue } = this;
@@ -736,7 +770,7 @@ export class EasyWebWorker<
 
           this.workers.forEach((worker) => worker.terminate());
           this.workers = [];
-        }, this.terminationDelay);
+        }, this.config.terminationDelay);
       });
     }
 
@@ -761,14 +795,22 @@ export class EasyWebWorker<
    * @param {unknown} reason - reason why the worker was terminated
    * @returns {IMessagePromise<TResult>} generated defer that will be resolved when the message completed
    */
-  public override = (async (
+  public override = ((
     ...[payload, reason, config]: [TPayload] extends [null]
       ? [null?, unknown?, TOverrideConfig?]
       : [TPayload, unknown?, TOverrideConfig?]
   ) => {
-    await this.cancelAll(reason, config);
+    return new CancelablePromise<TResult>(async (resolve, _, { onCancel }) => {
+      const cancelAllPromise = this.cancelAll(reason, config);
 
-    return this.send(...([payload] as [TPayload]));
+      onCancel(() => {
+        cancelAllPromise.cancel();
+      });
+
+      await cancelAllPromise;
+
+      resolve(this.send(...([payload] as [TPayload])));
+    });
   }) as unknown as [TPayload] extends [null]
     ? (reason?: unknown, config?: TOverrideConfig) => CancelablePromise<TResult>
     : (
@@ -783,23 +825,35 @@ export class EasyWebWorker<
    * @param {unknown} reason - reason why the worker was terminated
    * @returns {IMessagePromise<TResult>} generated defer that will be resolved when the message completed
    */
-  public overrideAfterCurrent = (async (
+  public overrideAfterCurrent = ((
     ...[payload, reason, config]: [TPayload] extends [null]
       ? [null?, unknown?, TOverrideConfig?]
       : [TPayload, unknown?, TOverrideConfig?]
   ) => {
-    if (this.messagesQueue.size) {
-      const [firstItem] = this.messagesQueue;
-      const [, currentMessage] = firstItem;
+    return new CancelablePromise<TResult>(
+      async (resolve, _, { onCancel, reportProgress }) => {
+        if (this.messagesQueue.size) {
+          const [firstItem] = this.messagesQueue;
+          const [, currentMessage] = firstItem;
 
-      this.RemoveMessageFromQueue(currentMessage.messageId);
+          this.RemoveMessageFromQueue(currentMessage.messageId);
 
-      await this.cancelAll(reason, config);
+          const cancelAllPromise = this.cancelAll(reason, config).onProgress(
+            reportProgress
+          );
 
-      this.addMessageToQueue(currentMessage);
-    }
+          onCancel(() => {
+            cancelAllPromise.cancel();
+          });
 
-    return this.send(...([payload] as [TPayload]));
+          this.addMessageToQueue(currentMessage);
+
+          await cancelAllPromise;
+        }
+
+        resolve(this.send(...([payload] as [TPayload])));
+      }
+    );
   }) as unknown as [TPayload] extends [null]
     ? (reason?: unknown, TOverrideConfig?) => CancelablePromise<TResult>
     : (
@@ -836,7 +890,10 @@ export class EasyWebWorker<
   public async dispose(): Promise<void> {
     await this.cancelAll(null);
 
-    if (this.workerUrl) URL.revokeObjectURL(this.workerUrl);
+    this.workerUrl = null;
+    this.messagesQueue?.clear();
+    this.messagesQueue = null;
+    this.config = null;
 
     this.workers.forEach((worker) => worker.terminate());
     this.workers = [];

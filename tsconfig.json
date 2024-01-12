@@ -2,16 +2,18 @@
   "compilerOptions": {
     "target": "ES2016",
     "module": "commonjs",
-    "lib": ["es2016", "dom", "webworker"],
+    "lib": [
+      "es2016"
+    ],
     "declaration": true,
     "outDir": "./lib",
-    "strict": true,
+    "strict": false,
     "noImplicitAny": false,
     "strictNullChecks": false,
     "strictFunctionTypes": true,
     "strictPropertyInitialization": false,
     "noImplicitThis": true,
-    "alwaysStrict": true,
+    "alwaysStrict": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
@@ -23,13 +25,24 @@
     "sourceMap": true,
     "allowJs": true,
     "declarationDir": "./lib",
-    "typeRoots": ["node_modules/@types", "./types"],
+    "typeRoots": [
+      "node_modules/@types",
+      "./types"
+    ],
     "moduleResolution": "node",
     "baseUrl": ".",
     "paths": {
-      "*": ["src/*"]
+      "*": [
+        "src/*"
+      ]
     }
   },
-  "include": ["src/**/*", "types/**/*"],
-  "exclude": ["node_modules", "lib"]
+  "include": [
+    "src/**/*",
+    "types/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "lib"
+  ]
 }

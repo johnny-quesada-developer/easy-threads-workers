@@ -1,8 +1,8 @@
-# easy-web-worker 🌟
+# easy-threads-workers 🌟
 
 ![Image John Avatar](https://raw.githubusercontent.com/johnny-quesada-developer/global-hooks-example/main/public/avatar2.jpeg)
 
-Hello and welcome to **easy-web-worker** with [cancelable-promise-jq](https://www.npmjs.com/package/cancelable-promise-jq) – your go-to solution for seamless **Web Workers** integration, now enhanced with cancelable promises! 🚀
+Hello and welcome to **easy-threads-workers** with [cancelable-promise-jq](https://www.npmjs.com/package/cancelable-promise-jq) – your go-to solution for seamless **Web Workers** integration, now enhanced with cancelable promises! 🚀
 
 [Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers) are a native tool provided by **JavaScript**, allowing you to use them within your favorite framework like **React**, **Angular**, **Vue**, and others, or with pure **JavaScript** and **TypeScript**.
 
@@ -95,13 +95,13 @@ easyWorker.onMessage('readCSV', (message) => {
 });
 ```
 
-**easy-web-worker** is designed to enhance the capabilities of the **Worker** class by integrating a pattern of cancelable promises from the [cancelable-promise-jq](https://www.npmjs.com/package/cancelable-promise-jq) library. For straightforward tasks, it simplifies the process by eliminating the need to configure webpack or other bundlers. And for more complex requirements, the **StaticEasyWebWorker** class allows the integration of easy worker and cancelable promises capabilities into your static workers.
+**easy-threads-workers** is designed to enhance the capabilities of the **Worker** class by integrating a pattern of cancelable promises from the [cancelable-promise-jq](https://www.npmjs.com/package/cancelable-promise-jq) library. For straightforward tasks, it simplifies the process by eliminating the need to configure webpack or other bundlers. And for more complex requirements, the **StaticEasyWebWorker** class allows the integration of easy worker and cancelable promises capabilities into your static workers.
 
 Start enhancing your applications with robust, cancelable promises and easy web worker integration today! 🌐
 
-Experience it in action with a [Live Example featuring text-diff](https://johnny-quesada-developer.github.io/easy-web-workers-example/) 📘.
+Experience it in action with a [Live Example featuring text-diff](https://johnny-quesada-developer.github.io/easy-threads-workerss-example/) 📘.
 
-For a comprehensive understanding, watch our informative [introduction video](https://www.youtube.com/watch?v=CK-Uri9lDOE) 🎥. You can also dive deeper into the code and explore on [easy-web-workers-examples](https://github.com/johnny-quesada-developer/easy-web-workers-example) 🧩.
+For a comprehensive understanding, watch our informative [introduction video](https://www.youtube.com/watch?v=CK-Uri9lDOE) 🎥. You can also dive deeper into the code and explore on [easy-threads-workerss-examples](https://github.com/johnny-quesada-developer/easy-threads-workerss-example) 🧩.
 
 ## Creating a simple Web Worker
 
@@ -431,6 +431,5 @@ Sends a message to the worker
 ## Collaborators
 
 [![Image Johnny Quesada](https://avatars.githubusercontent.com/u/62082152?v=4&s=150)](https://github.com/johnny-quesada-developer)
-&nbsp;&nbsp;&nbsp;&nbsp;[![Image Gabriele Cirulli](https://avatars.githubusercontent.com/u/886011?v=4&s=150)](https://github.com/gabrielecirulli)
 
-[Johnny Quesada](https://github.com/johnny-quesada-developer) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Gabriele Cirulli](https://github.com/gabrielecirulli)
+[Johnny Quesada](https://github.com/johnny-quesada-developer)

@@ -1,6 +1,6 @@
 {
   "testEnvironment": "node",
-  "collectCoverageFrom": ["./src/*.ts", "./@tests/*.tsx", "./@tests/*.ts"],
+  "collectCoverageFrom": ["./src/*.ts", "./@tests/*.ts"],
   "coverageDirectory": "./coverage",
   "coverageReporters": ["text", "html"],
   "setupFilesAfterEnv": ["./jestSetup.ts"],

@@ -2,6 +2,7 @@ const path = require('path');
 
 module.exports = {
   mode: 'production',
+  "target": "node",
   entry: {
     bundle: './src/index.ts',
   },
@@ -15,15 +16,15 @@ module.exports = {
       return `${name}.js`;
     },
     libraryTarget: 'umd',
-    library: 'easy-web-worker',
+    library: 'easy-threads-workers',
     globalObject: 'this',
   },
   resolve: {
     extensions: ['.ts', '.js'],
     alias: {
-      'easy-web-worker': path.resolve(
+      'easy-threads-workers': path.resolve(
         __dirname,
-        'node_modules/easy-web-worker/package.json'
+        'node_modules/easy-threads-workers/package.json'
       ),
     },
   },
