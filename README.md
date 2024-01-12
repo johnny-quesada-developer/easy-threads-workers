@@ -1,16 +1,18 @@
-# easy-web-worker 🌟
+# easy-threads-workers 🌟
 
 ![Image John Avatar](https://raw.githubusercontent.com/johnny-quesada-developer/global-hooks-example/main/public/avatar2.jpeg)
 
-Hello and welcome to **easy-web-worker** with [cancelable-promise-jq](https://www.npmjs.com/package/cancelable-promise-jq) – your go-to solution for seamless **Web Workers** integration, now enhanced with cancelable promises! 🚀
+Hello and welcome to **easy-threads-workers** with [cancelable-promise-jq](https://www.npmjs.com/package/cancelable-promise-jq) – your go-to solution for seamless **Worker Threads** integration in Node.js, enhanced with the power of cancelable promises! 🚀
 
-[Web Workers](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers) are a native tool provided by **JavaScript**, allowing you to use them within your favorite framework like **React**, **Angular**, **Vue**, and others, or with pure **JavaScript** and **TypeScript**.
+[Worker Threads](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers) are a powerful feature provided by **Node.js**, allowing for efficient multithreading in a JavaScript environment. With **easy-threads-workers**, you can leverage Worker Threads in your Node.js applications, whether you're working with frameworks or with pure **JavaScript** and **TypeScript**.
 
-Check out the running example with **React** and **TypeScript** at [CODEPEN](https://codepen.io/johnnynabetes/pen/wvOvygW?editors=0010); let's explore the capabilities of JavaScript's concurrent processing with Web Workers!"
+Experience the capabilities of Node.js's concurrent processing with Worker Threads!
 
-[Important!] Starting from version 4.0.0, EasyWebWorker supports concurrency mode. This means you can now configure whether a single **EasyWebWorker** should use multiple Web Worker instances. This feature is extremely powerful for code that requires not only heavy computations occasionally but also robust concurrent processing. For more detailed information, please see the section below. [concurrency mode](#concurrency-mode)
+EasyThreadsWorker supports concurrency mode. This allows you to configure whether a single **EasyThreadsWorker** should use multiple Worker Thread instances, providing robust concurrent processing for code requiring heavy computations. For more detailed information, please see the section below on [concurrency mode](#concurrency-mode).
 
-### Creating a web worker never was easier!
+Check out the running example of **easy-web-workers**, the sibling library of **easy-threads-workers**, featuring **React** and **TypeScript** on [CODEPEN](https://codepen.io/johnnynabetes/pen/wvOvygW?editors=0010). Let's explore the capabilities of JavaScript's concurrent processing with Web Workers!
+
+### Creating a Thread Workers never was easier!
 
 ```ts
 /**
@@ -47,9 +49,9 @@ Then, for sending a message to the worker:
 await worker.send(40);
 ```
 
-And that's it! You now have a worker running heavy computation in a real separate thread, with real asynchronous programming in JavaScript.
+And that's it! You now have a worker thread running heavy computations in a separate thread, harnessing the true power of asynchronous programming in JavaScript.
 
-You can also create an easy web worker from a static file, or from a native worker instance:
+You can also create an easy worker from a static file or a native Worker Thread instance:
 
 ```ts
 const worker = createEasyWebWorker('./worker.js');
@@ -59,9 +61,7 @@ const worker = new EasyWebWorker('./worker.js');
 const worker = new EasyWebWorker(new Worker('./worker.js')); // ƒ Worker() { [native code] }
 ```
 
-When working with **static files**, which can offer substantial benefits with web workers, you simply need to create an instance of **StaticEasyWebWorker**.
-
-The **StaticEasyWebWorker** provides an interface to continue working with [cancelable-promise-jq](https://www.npmjs.com/package/cancelable-promise-jq) and build more complex APIs within your worker.
+When working with static files, simply create an instance of **StaticEasyThreadsWorker**. This class provides an interface to continue working with [cancelable-promise-jq](https://www.npmjs.com/package/cancelable-promise-jq) building more complex APIs within your worker.
 
 ```ts
 const easyWorker = new StaticEasyWebWorker();
@@ -95,17 +95,17 @@ easyWorker.onMessage('readCSV', (message) => {
 });
 ```
 
-**easy-web-worker** is designed to enhance the capabilities of the **Worker** class by integrating a pattern of cancelable promises from the [cancelable-promise-jq](https://www.npmjs.com/package/cancelable-promise-jq) library. For straightforward tasks, it simplifies the process by eliminating the need to configure webpack or other bundlers. And for more complex requirements, the **StaticEasyWebWorker** class allows the integration of easy worker and cancelable promises capabilities into your static workers.
+**easy-threads-workers** enhances the capabilities of the **Worker Threads** class in Node.js by integrating a pattern of cancelable promises from the [cancelable-promise-jq](https://www.npmjs.com/package/cancelable-promise-jq) library. It simplifies the process for straightforward tasks and, for more complex requirements, allows the integration of easy worker and cancelable promises capabilities into your static workers.
 
-Start enhancing your applications with robust, cancelable promises and easy web worker integration today! 🌐
+Start enhancing your Node.js applications with robust, cancelable promises and easy worker thread integration today! 🌐
 
-Experience it in action with a [Live Example featuring text-diff](https://johnny-quesada-developer.github.io/easy-web-workers-example/) 📘.
+For a comprehensive understanding, explore our easy-threads-workers examples on GitHub 🧩.
 
-For a comprehensive understanding, watch our informative [introduction video](https://www.youtube.com/watch?v=CK-Uri9lDOE) 🎥. You can also dive deeper into the code and explore on [easy-web-workers-examples](https://github.com/johnny-quesada-developer/easy-web-workers-example) 🧩.
+Experience it in action with a [Live Example featuring text-diff](https://johnny-quesada-developer.github.io/easy-threads-workerss-example/) 📘.
 
-## Creating a simple Web Worker
+For a comprehensive understanding, watch our informative [introduction video](https://www.youtube.com/watch?v=CK-Uri9lDOE) 🎥. You can also dive deeper into the code and explore on [easy-threads-workerss-examples](https://github.com/johnny-quesada-developer/easy-threads-workerss-example) 🧩.
 
-Creating a new worker is as simple as
+## Creating a Simple Worker Thread
 
 ```TS
 const backgroundWorker = new EasyWebWorker<string, string>((easyWorker) => {
@@ -266,7 +266,7 @@ Super easy right?
 
 ## Concurrency mode
 
-With EasyWebWorker, you can create operations that require heavy concurrency and delegate them to a web workers queue, or create workers on demand depending on the traffic and specific tasks. Let's take a look:
+With EasyWebWorker, you can create operations that require heavy concurrency and delegate them to a Thread Workers queue, or create workers on demand depending on the traffic and specific tasks. Let's take a look:
 
 ```TS
 /**
@@ -431,6 +431,5 @@ Sends a message to the worker
 ## Collaborators
 
 [![Image Johnny Quesada](https://avatars.githubusercontent.com/u/62082152?v=4&s=150)](https://github.com/johnny-quesada-developer)
-&nbsp;&nbsp;&nbsp;&nbsp;[![Image Gabriele Cirulli](https://avatars.githubusercontent.com/u/886011?v=4&s=150)](https://github.com/gabrielecirulli)
 
-[Johnny Quesada](https://github.com/johnny-quesada-developer) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;[Gabriele Cirulli](https://github.com/gabrielecirulli)
+[Johnny Quesada](https://github.com/johnny-quesada-developer)
