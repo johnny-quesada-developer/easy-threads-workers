@@ -306,7 +306,7 @@ export class EasyWebWorker<
     new Map();
 
   protected get isExternalWorkerFile(): boolean {
-    return typeof this.source === 'string';
+    return typeof this.source === 'string' || this.source instanceof URL;
   }
 
   constructor(
@@ -497,7 +497,7 @@ export class EasyWebWorker<
       const isWorkerInstance = this.source instanceof Worker;
 
       if (isWorkerInstance) {
-        // static simgle workers instance
+        // static simple workers instance
         this.workers = [this.fillWorkerMethods(this.source as Worker)];
 
         return {

@@ -55,22 +55,11 @@ export const StaticEasyWebWorker = function <TPayload = null, TResult = void>(
         })();
 
         if (!workerMessages.has(messageId)) {
-          const message =
-            '\n%cMessage Not Found\n\n' +
-            '%cMessage %c' +
-            messageId +
-            ' %cwas not found:\n\n' +
-            'This means that the message was already resolved | rejected | canceled. To avoid this error, please make sure that you are not resolving | rejecting | canceling the same message twice. Also make sure that you are not reporting progress after the message was processed.\n\n' +
-            'Remember each message can handle his one cancelation by adding a handler with the %cmessage.onCancel%c method.\n\n' +
-            'To now more about this method, please check the documentation at:\n' +
-            '%chttps://www.npmjs.com/package/easy-web-worker#ieasywebworkermessageipayload--null-iresult--void\n\n' +
-            '%cTrying to process message:\n';
+          const message = "%c#" + messageId + " Message Not Found: %cThis means that the message was already resolved | rejected | canceled. To avoid this error, please make sure that you are not resolving | rejecting | canceling the same message twice. Also make sure that you are not reporting progress after the message was processed. Remember each message can handle his one cancelation by adding a handler with the %cmessage.onCancel%c method. To now more about this method, please check the documentation at: %chttps://www.npmjs.com/package/easy-web-worker#ieasywebworkermessageipayload--null-iresult--void %cTrying to process message:";
 
           console.error(
             message,
             'color: darkorange; font-size: 12px; font-weight: bold;',
-            'color: black;',
-            'font-weight: bold;',
             'font-weight: normal;',
             'font-weight: bold;',
             'font-weight: normal;',
@@ -83,7 +72,7 @@ export const StaticEasyWebWorker = function <TPayload = null, TResult = void>(
                 target: targetMessageStatus,
               },
               method,
-              data,
+              action: data,
             }
           );
 
