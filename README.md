@@ -10,7 +10,7 @@ Experience the capabilities of Node.js's concurrent processing with Worker Threa
 
 EasyThreadsWorker supports concurrency mode. This allows you to configure whether a single **EasyThreadsWorker** should use multiple Worker Thread instances, providing robust concurrent processing for code requiring heavy computations. For more detailed information, please see the section below on [concurrency mode](#concurrency-mode).
 
-Check out the running example of **easy-web-workers**, the sibling library of **easy-threads-workers**, featuring **React** and **TypeScript** on [CODEPEN](https://codepen.io/johnnynabetes/pen/wvOvygW?editors=0010). Let's explore the capabilities of JavaScript's concurrent processing with Web Workers!
+Check out the running example of **easy-web-workers**, the sibling library of **easy-threads-workers**, featuring **React** and **TypeScript** on [CODEPEN](https://codepen.io/johnnynabetes/full/wvOvygW). Let's explore the capabilities of JavaScript's concurrent processing with Web Workers!
 
 ### Creating a Thread Workers never was easier!
 
