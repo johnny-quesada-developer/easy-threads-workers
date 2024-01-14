@@ -59,11 +59,11 @@ describe('StaticEasyWebWorker', () => {
 
         const numericResult = await worker
           .sendToMethod<number>('progressTest')
-          .onProgress(progressLogger)
+          .onProgress(() => progressLogger())
           .then((result) => result)
-          .onProgress(progressLogger)
+          .onProgress(() => progressLogger())
           .then((result) => result)
-          .onProgress(progressLogger);
+          .onProgress(() => progressLogger());
 
         expect(progressLogger).toHaveBeenCalledTimes(300);
         expect(numericResult).toBe(4950);
