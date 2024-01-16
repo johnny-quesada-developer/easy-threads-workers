@@ -18,7 +18,7 @@ Check out the running example of **easy-web-workers**, the sibling library of **
 /**
  * The callback parameter will be the body of the worker
  */
-const worker = createEasyWebWorker((easyWorker) => {
+const worker = createEasyWebWorker(({ onMessage }) => {
   const fibonacci = (n) => {
     if (n <= 1) return n;
     return fibonacci(n - 1) + fibonacci(n - 2);
@@ -27,7 +27,7 @@ const worker = createEasyWebWorker((easyWorker) => {
   /**
    * Inside the worker we have to define an action when onMessage
    */
-  easyWorker.onMessage((message) => {
+  onMessage((message) => {
     /**
      * The payload includes whatever parameters are sent from the main thread
      */
@@ -108,15 +108,15 @@ For a comprehensive understanding, watch our informative [introduction video](ht
 ## Creating a Simple Worker Thread
 
 ```TS
-const backgroundWorker = new EasyWebWorker<string, string>((easyWorker) => {
-  easyWorker.onMessage((message) => {
+const backgroundWorker = createEasyWebWorker<string, string>(({ onMessage }) => {
+  onMessage((message) => {
     const { payload } = message;
 
     message.resolve(`this is  a message from the worker: ${payload}`);
   });
 
   // you could also define and send specific methods which allow you to create a better structured API
-  easyWorker.onMessage<number, number>('doSomething', (message) => {
+  onMessage<number, number>('doSomething', (message) => {
     const { payload } = message;
 
     message.resolve(payload + 2);
@@ -142,8 +142,8 @@ Take into consideration that the _workerBody_ is a template to create a worker i
 ```TS
 const message = 'Hello';
 
-await new EasyWebWorker<null, string>((easyWorker) => {
-  easyWorker.onMessage((message) => {
+await createEasyWebWorker<null, string>(({ onMessage }) => {
+  onMessage((message) => {
 
     message.resolve(message); // THIS WILL PRODUCE AND ERROR!! the variable *message* will not exist in Worker-Scope.
   });
@@ -203,7 +203,7 @@ const WorkerPluggin: EasyWebWorkerBody = (_easyWorker, context) => {
   context.doSomething = () => Promise.resolve('This is a plugin example');
 };
 
-const plugginMessage = await new EasyWebWorker([WorkerPluggin, (easyWorker, context) => easyWorker.onMessage(async (message) => {
+const plugginMessage = await createEasyWebWorker([WorkerPluggin, (easyWorker, context) => easyWorker.onMessage(async (message) => {
   // context will have all stuff we added on other plugins
   const plugginResponse = await context.doSomething();
 
@@ -226,7 +226,7 @@ selft.doSomething = () => console.log(self.message);
 ```
 
 ```TS
-await new EasyWebWorker((easyWorker, context) => {
+await createEasyWebWorker((easyWorker, context) => {
   easyWorker.onMessage((message) => context.doSomething());
 }, {
   scripts: ['http://localhost:3000/test.js'],
@@ -258,7 +258,7 @@ const worker = new StaticEasyWebWorker((message) => {
 and in your main thread:
 
 ```TS
-const worker = new EasyWebWorker<null,number>('./worker.js');
+const worker = createEasyWebWorker<null,number>('./worker.js');
 await worker.send();
 ```
 
@@ -273,8 +273,8 @@ With EasyWebWorker, you can create operations that require heavy concurrency and
  * Notice that the structure of the worker remains the same;
  * the only changes are in the configuration parameters of the worker.
  * Take a look below.*/
-const worker = createEasyWebWorker((easyWorker) => {
-  easyWorker.onMessage((message) => {
+const worker = createEasyWebWorker(({ onMessage }) => {
+  onMessage((message) => {
     const { payload } = message;
 
     // heavy computation like fibonacci
@@ -315,7 +315,7 @@ interface FilterSource {
   reportProgress: boolean,
 }
 
-const worker = new EasyWebWorker<FilterSource, any[]>((easyWorker) => {
+const worker = createEasyWebWorker<FilterSource, any[]>(({ onMessage }) => {
   const containsValue = (item: any, filter: string): boolean => {
     const itemKeys = Object.keys(item);
 
@@ -330,7 +330,7 @@ const worker = new EasyWebWorker<FilterSource, any[]>((easyWorker) => {
     });
   };
 
-  easyWorker.onMessage((message: IEasyWebWorkerMessage<FilterSource, any[]>) => {
+  onMessage((message: IEasyWebWorkerMessage<FilterSource, any[]>) => {
     const { payload } = message;
     const { collection, filter = '', reportProgress: countProgress } = payload;
     const { length: collectionLength } = collection;
@@ -390,8 +390,8 @@ Returns an array of promises that are resolved with the rejection reason provide
 Example usage:
 
 ```typescript
-const worker = new EasyWebWorker<string, string>((easyWorker) => {
-  easyWorker.onMessage(async (message) => {
+const worker = createEasyWebWorker<string, string>(({ onMessage }) => {
+  onMessage(async (message) => {
     message.resolve(`Received message: ${message.payload}`);
   });
 });
