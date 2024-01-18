@@ -2,6 +2,7 @@ import { EasyWebWorkerMessage } from './EasyWebWorkerMessage';
 import { getWorkerTemplate, generatedId } from './EasyWebWorkerFixtures';
 import {
   CancelablePromise,
+  Subscription,
   groupAsCancelablePromise,
 } from 'cancelable-promise-jq';
 import {
@@ -78,7 +79,7 @@ export interface IMessageData<IPayload = null> {
   /**
    * This is the message id
    * */
-  readonly messageId: string;
+  readonly messageId?: string;
 
   /**
    * When present, this means that the message was resolved
@@ -170,7 +171,7 @@ export type TOverrideConfig = {
 export type EasyWebWorkerBody<
   IPayload = null,
   IResult = void,
-  TPrimitiveParameters extends any[] = unknown[]
+  TPrimitiveParameters extends any[] = unknown[],
 > = (
   /**
    * This is the instance of the worker that you can use to communicate with the main thread
@@ -185,7 +186,34 @@ export type EasyWebWorkerBody<
   } & Record<string, unknown>
 ) => void;
 
+export type TMessagePostType =
+  | 'progress'
+  | 'resolved'
+  | 'rejected'
+  | 'canceled'
+  | 'worker_cancelation';
+
+export type TMessageCallback = (
+  messageData: IMessageData<any>,
+  transfer: TransferListItem[]
+) => void;
+
+export type TMessageCallbackType =
+  | 'onResolve'
+  | 'onCancel'
+  | 'onReject'
+  | 'onProgress'
+  | 'onFinalize';
+
+export type TMessageStatus = TMessagePostType | 'pending';
+
+/**
+ * This contract is just for the messages inside the workers
+ */
 export interface IEasyWebWorkerMessage<TPayload = null, TResult = void> {
+  /**
+   * This is the method name targeted by the message
+   */
   method?: string;
 
   /**
@@ -199,17 +227,12 @@ export interface IEasyWebWorkerMessage<TPayload = null, TResult = void> {
   readonly payload: TPayload;
 
   /**
-   * This method is used to reject the message from inside the worker
-   * */
-  readonly reject: (reason?: unknown, transfer?: TransferListItem) => void;
-
-  /**
    * This method is used to report the progress of the message from inside the worker
    * */
   readonly reportProgress: (
     percentage: number,
     payload?: unknown,
-    transfer?: TransferListItem
+    transfer?: TransferListItem[]
   ) => void;
 
   /**
@@ -217,30 +240,58 @@ export interface IEasyWebWorkerMessage<TPayload = null, TResult = void> {
    * */
   readonly resolve: [TResult] extends [void]
     ? () => void
-    : (payload: TResult, transfer?: TransferListItem) => void;
+    : (payload: TResult, transfer?: TransferListItem[]) => void;
+
+  /**
+   * This method is used to reject the message from inside the worker
+   * */
+  readonly reject: (reason?: unknown, transfer?: TransferListItem[]) => void;
 
   /**
    * This method is used to cancel the message from inside the worker
    * */
-  readonly cancel: (reason?: unknown, transfer?: TransferListItem) => void;
+  readonly cancel: (reason?: unknown, transfer?: TransferListItem[]) => void;
 
   /**
-   * Thus method is used to subscribe to the cancel event from the main thread
+   * Gets the current status of the message
    */
-  readonly onCancel: (callback: (reason?: unknown) => void) => void;
+  readonly getStatus: () => TMessageStatus;
 
   /**
-   * This method is used to get the current status of the message
+   * Returns true if the message is pending
    */
-  readonly getStatus: () => 'pending' | 'resolved' | 'rejected' | 'canceled';
-
   readonly isPending: () => boolean;
+
+  /**
+   * This method is used to subscribe to the worker resolve event of the message
+   */
+  readonly onResolve: (callback: TMessageCallback) => Subscription;
+
+  /**
+   * This method is used to subscribe to the worker reject event of the message
+   */
+  readonly onReject: (callback: TMessageCallback) => Subscription;
+
+  /**
+   * This method is used to subscribe to the worker cancelation event of the message
+   */
+  readonly onCancel: (callback: TMessageCallback) => Subscription;
+
+  /**
+   * This method is used to subscribe to the worker onProgress event of the message
+   */
+  readonly onProgress: (callback: TMessageCallback) => Subscription;
+
+  /**
+   * This method is used to subscribe to the worker finally event of the message, once the message is resolved | rejected | canceled
+   */
+  readonly onFinalize: (callback: TMessageCallback) => Subscription;
 }
 
 export const createWorkerUrl = <
   IPayload = null,
   IResult = void,
-  TPrimitiveParameters extends any[] = unknown[]
+  TPrimitiveParameters extends any[] = unknown[],
 >(
   source:
     | EasyWebWorkerBody<IPayload, IResult>
@@ -254,9 +305,9 @@ export const createWorkerUrl = <
   const contentCollection: EasyWebWorkerBody<IPayload, IResult>[] =
     Array.isArray(source) ? source : [source];
 
-  const worker_content = `import { parentPort, isMainThread, workerData } from 'node:worker_threads';const primitiveParameters=JSON.parse(\`${JSON.stringify(
+  const worker_content = `import { parentPort, isMainThread, workerData } from 'node:worker_threads';let ew$=${getWorkerTemplate()};let cn$={parentPort,isMainThread,workerData,primitiveParameters:JSON.parse(\`${JSON.stringify(
     primitiveParameters ?? []
-  )}\`);let ew$=${getWorkerTemplate()};let cn$={parentPort,isMainThread,workerData};${contentCollection
+  )}\`)};${contentCollection
     .map((content) => {
       return `(${content})(ew$,cn$);`;
     })
@@ -285,7 +336,7 @@ export const createWorkerUrl = <
 export class EasyWebWorker<
   TPayload = null,
   TResult = void,
-  TPrimitiveParameters extends any[] = unknown[]
+  TPrimitiveParameters extends any[] = unknown[],
 > {
   public workerUrl?: string | URL | null = null;
 
@@ -318,7 +369,7 @@ export class EasyWebWorker<
      */
     protected source:
       | EasyWebWorkerBody<TPayload, TResult>
-      | EasyWebWorkerBody<any, any>[]
+      | EasyWebWorkerBody<TPayload, TResult>[]
       | string
       | URL
       | Worker
@@ -602,7 +653,6 @@ export class EasyWebWorker<
     if (worker_cancelation) {
       const { reason } = worker_cancelation;
 
-      // avoid calling the overridden callback if the message was canceled from inside the worker
       decoupledPromise._cancel(reason);
 
       return;
@@ -722,7 +772,10 @@ export class EasyWebWorker<
     return this.sendToWorker<TPayload, TResult>({ payload }, transfer);
   }) as [TPayload] extends [null]
     ? () => CancelablePromise<TResult>
-    : (payload: TPayload) => CancelablePromise<TResult>;
+    : (
+        payload: TPayload,
+        transfer?: TransferListItem[]
+      ) => CancelablePromise<TResult>;
 
   private sendToWorker = <TPayload_ = null, TResult_ = void>(
     {
@@ -784,7 +837,7 @@ export class EasyWebWorker<
       },
     };
 
-    worker.postMessage(data);
+    worker.postMessage(data, transfer);
 
     return decoupledPromise.promise;
   };

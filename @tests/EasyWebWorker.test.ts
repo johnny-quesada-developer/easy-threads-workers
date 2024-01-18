@@ -13,7 +13,10 @@ describe('EasyWebWorker', () => {
   describe('constructor', () => {
     const workerName = 'workerTest';
 
-    const workerContent: EasyWebWorkerBody = (easyWorker, context) => {
+    const workerContent: EasyWebWorkerBody<any, any> = (
+      easyWorker,
+      context
+    ) => {
       context.globalPropertyTest = 'globalPropertyTest';
 
       easyWorker.onMessage((message) => {
@@ -220,7 +223,10 @@ describe('EasyWebWorker', () => {
 
         const errorLogger = jest.fn();
 
-        await worker.sendToMethod('doSomething', 2).cancel().catch(errorLogger);
+        await worker
+          .sendToMethod('doSomething', 2)
+          .cancel()
+          .catch(() => errorLogger());
 
         const wasCanceled = await worker.sendToMethod('getWasCanceled');
 
@@ -480,6 +486,187 @@ describe('EasyWebWorker', () => {
 
         expect(callback1).not.toHaveBeenCalled();
         expect(errorLogger).toHaveBeenCalledWith('cancel-from-worker');
+      });
+
+      ['onResolve', 'onCancel', 'onProgress', 'onFinalize'].forEach(
+        (callbackKey) => {
+          it(`should correctly subscribe to ${callbackKey}`, async () => {
+            expect.assertions(5);
+
+            const worker = createEasyWebWorker(
+              (easyWorker, context) => {
+                let previousMessage: IEasyWebWorkerMessage | null = null;
+                let didCallbackWasCalled = false;
+
+                const [callback] =
+                  (context.primitiveParameters as unknown[] as [
+                    keyof IEasyWebWorkerMessage,
+                  ]) ?? [];
+
+                easyWorker.onMessage((message) => {
+                  previousMessage = message;
+
+                  message[callback as any](() => {
+                    didCallbackWasCalled = true;
+                  });
+                });
+
+                easyWorker.onMessage<null, boolean>(
+                  'getDidCallbackWasCalled',
+                  (message) => {
+                    message.resolve(didCallbackWasCalled);
+                  }
+                );
+
+                easyWorker.onMessage('resolvePrevious', (message) => {
+                  if (callback === 'onProgress') {
+                    previousMessage?.reportProgress(1);
+                  }
+
+                  previousMessage?.[
+                    callback === 'onCancel' ? 'cancel' : 'resolve'
+                  ]();
+
+                  message.resolve();
+                });
+              },
+              {
+                primitiveParameters: [callbackKey],
+              }
+            );
+
+            const callback1 = jest.fn();
+            const errorLogger = jest.fn();
+
+            worker.send().then(callback1).catch(errorLogger);
+
+            await new Promise((resolve) => setTimeout(resolve, 10));
+
+            expect(callback1).not.toHaveBeenCalled();
+
+            let didCallbackWasCalled = await worker.sendToMethod(
+              'getDidCallbackWasCalled'
+            );
+
+            expect(didCallbackWasCalled).toEqual(false);
+
+            await worker.sendToMethod('resolvePrevious').then(callback1);
+
+            didCallbackWasCalled = await worker.sendToMethod(
+              'getDidCallbackWasCalled'
+            );
+
+            expect(callback1).toBeCalledTimes(
+              callbackKey === 'onCancel' ? 1 : 2
+            );
+            expect(didCallbackWasCalled).toEqual(true);
+            expect(errorLogger).toHaveBeenCalledTimes(
+              callbackKey === 'onCancel' ? 1 : 0
+            );
+          });
+        }
+      );
+
+      describe('transferable', () => {
+        type TPayload = {
+          arrayBuffer: ArrayBuffer;
+          action;
+        };
+
+        let worker: EasyWebWorker<TPayload, TPayload>;
+
+        beforeEach(() => {
+          worker = createEasyWebWorker<TPayload, TPayload>((easyWorker) => {
+            easyWorker.onMessage((message) => {
+              const { arrayBuffer, action } = message.payload;
+
+              if (action === 'reportProgress') {
+                message.reportProgress(50, message.payload, [arrayBuffer]);
+
+                message.resolve({
+                  arrayBuffer: new ArrayBuffer(0),
+                  action,
+                });
+
+                return;
+              }
+
+              message[action](
+                {
+                  arrayBuffer,
+                  action,
+                },
+                [arrayBuffer]
+              );
+            });
+          });
+        });
+
+        (
+          ['resolve', 'reject', 'cancel', 'reportProgress'] as (
+            | 'resolve'
+            | 'reject'
+            | 'cancel'
+            | 'reportProgress'
+          )[]
+        ).forEach((action) => {
+          it(`should transfer a big array buffer when action is ${action}`, async () => {
+            expect.assertions(4);
+
+            const errorLogger = jest.fn();
+            const progressLogger = jest.fn();
+            const bigArrayBuffer = new ArrayBuffer(1000000);
+
+            type TPayload = {
+              arrayBuffer: ArrayBuffer;
+              action;
+            };
+
+            let progressMetadata: TPayload = null as unknown as TPayload;
+
+            const result = await worker
+              .send(
+                {
+                  arrayBuffer: bigArrayBuffer,
+                  action,
+                },
+                [bigArrayBuffer]
+              )
+              .onProgress((progress, metadata) => {
+                progressLogger(progress);
+
+                progressMetadata = metadata as TPayload;
+              })
+              .catch<TPayload>((reason) => {
+                errorLogger();
+
+                return reason;
+              });
+
+            if (action === 'resolve') {
+              expect(errorLogger).not.toHaveBeenCalled();
+              expect(progressLogger).not.toHaveBeenCalled();
+            }
+
+            if (action === 'reject' || action === 'cancel') {
+              expect(errorLogger).toHaveBeenCalledTimes(1);
+              expect(progressLogger).not.toHaveBeenCalled();
+            }
+
+            if (action === 'reportProgress') {
+              expect(progressLogger).toHaveBeenCalledWith(50);
+              expect(errorLogger).not.toHaveBeenCalled();
+
+              expect(bigArrayBuffer.byteLength).toEqual(0);
+              expect(progressMetadata.arrayBuffer.byteLength).toEqual(1000000);
+
+              return;
+            }
+
+            expect(result.arrayBuffer.byteLength).toEqual(1000000);
+            expect(bigArrayBuffer.byteLength).toEqual(0);
+          });
+        });
       });
     });
   });

@@ -5,26 +5,26 @@ import EasyWebWorker from '../src';
 import { createDecoupledPromise } from 'cancelable-promise-jq';
 
 describe('StaticEasyWebWorker', () => {
-  let worker: EasyWebWorker<null, string>;
-
-  beforeEach(() => {
-    worker = new EasyWebWorker<null, string>(
-      url.pathToFileURL(
-        path.resolve(__dirname, '../@tests/StaticEasyWebWorker.worker.js')
-      ),
-      {
-        workerOptions: {
-          name: 'StaticEasyWebWorker',
-        },
-      }
-    );
-  });
-
-  afterEach(async () => {
-    await worker.dispose();
-  });
-
   describe('constructor', () => {
+    let worker: EasyWebWorker<null, string>;
+
+    beforeEach(() => {
+      worker = new EasyWebWorker<null, string>(
+        url.pathToFileURL(
+          path.resolve(__dirname, '../@tests/StaticEasyWebWorker.worker.js')
+        ),
+        {
+          workerOptions: {
+            name: 'StaticEasyWebWorker',
+          },
+        }
+      );
+    });
+
+    afterEach(async () => {
+      await worker.dispose();
+    });
+
     it('properties should be correctly populated', () => {
       expect(worker.config.workerOptions?.name).toEqual('StaticEasyWebWorker');
       expect(worker.workers.length).toBe(1);
@@ -41,9 +41,26 @@ describe('StaticEasyWebWorker', () => {
   });
 
   describe('Methods', () => {
-    beforeEach(() => {});
-
     describe('send', () => {
+      let worker: EasyWebWorker<null, string>;
+
+      beforeEach(() => {
+        worker = new EasyWebWorker<null, string>(
+          url.pathToFileURL(
+            path.resolve(__dirname, '../@tests/StaticEasyWebWorker.worker.js')
+          ),
+          {
+            workerOptions: {
+              name: 'StaticEasyWebWorker',
+            },
+          }
+        );
+      });
+
+      afterEach(async () => {
+        await worker.dispose();
+      });
+
       it('worker should run correctly messages', async () => {
         expect.assertions(1);
 
@@ -71,6 +88,25 @@ describe('StaticEasyWebWorker', () => {
     });
 
     describe('sendToMethod', () => {
+      let worker: EasyWebWorker<null, string>;
+
+      beforeEach(() => {
+        worker = new EasyWebWorker<null, string>(
+          url.pathToFileURL(
+            path.resolve(__dirname, '../@tests/StaticEasyWebWorker.worker.js')
+          ),
+          {
+            workerOptions: {
+              name: 'StaticEasyWebWorker',
+            },
+          }
+        );
+      });
+
+      afterEach(async () => {
+        await worker.dispose();
+      });
+
       it('worker should run correctly specific method', async () => {
         expect.assertions(1);
 
@@ -313,6 +349,155 @@ describe('StaticEasyWebWorker', () => {
         expect(errorLogger).toHaveBeenCalledWith(
           'canceled from inside the worker'
         );
+      });
+    });
+
+    describe('subscriptions', () => {
+      let worker: EasyWebWorker<null, string>;
+
+      beforeEach(() => {
+        worker = new EasyWebWorker<null, string>(
+          url.pathToFileURL(
+            path.resolve(__dirname, '../@tests/StaticEasyWebWorker.worker.js')
+          ),
+          {
+            workerOptions: {
+              name: 'StaticEasyWebWorker',
+            },
+          }
+        );
+      });
+
+      afterEach(async () => {
+        await worker.dispose();
+      });
+
+      ['onResolve', 'onCancel', 'onProgress', 'onFinalize'].forEach(
+        (callbackKey) => {
+          it(`should correctly subscribe to ${callbackKey}`, async () => {
+            expect.assertions(5);
+
+            const callback1 = jest.fn();
+            const errorLogger = jest.fn();
+
+            worker
+              .sendToMethod('sendOpenMessage', callbackKey)
+              .then(callback1)
+              .catch(errorLogger);
+
+            await new Promise((resolve) => setTimeout(resolve, 10));
+
+            expect(callback1).not.toHaveBeenCalled();
+
+            let didCallbackWasCalled = await worker.sendToMethod(
+              'getDidCallbackWasCalled'
+            );
+
+            expect(didCallbackWasCalled).toEqual(false);
+
+            await worker.sendToMethod('sendCloseMessage').then(callback1);
+
+            didCallbackWasCalled = await worker.sendToMethod(
+              'getDidCallbackWasCalled'
+            );
+
+            expect(callback1).toBeCalledTimes(
+              callbackKey === 'onCancel' ? 1 : 2
+            );
+            expect(didCallbackWasCalled).toEqual(true);
+            expect(errorLogger).toHaveBeenCalledTimes(
+              callbackKey === 'onCancel' ? 1 : 0
+            );
+          });
+        }
+      );
+    });
+
+    describe('methods', () => {
+      let worker: EasyWebWorker<null, string>;
+
+      beforeEach(() => {
+        worker = new EasyWebWorker<null, string>(
+          url.pathToFileURL(
+            path.resolve(__dirname, '../@tests/StaticEasyWebWorker.worker.js')
+          ),
+          {
+            workerOptions: {
+              name: 'StaticEasyWebWorker',
+            },
+          }
+        );
+      });
+
+      afterEach(async () => {
+        await worker.dispose();
+      });
+
+      (
+        ['resolve', 'reject', 'cancel', 'reportProgress'] as (
+          | 'resolve'
+          | 'reject'
+          | 'cancel'
+          | 'reportProgress'
+        )[]
+      ).forEach((action) => {
+        it(`should transfer a big array buffer when ${action}`, async () => {
+          expect.assertions(4);
+
+          const errorLogger = jest.fn();
+          const progressLogger = jest.fn();
+          const bigArrayBuffer = new ArrayBuffer(1000000);
+
+          type TPayload = {
+            arrayBuffer: ArrayBuffer;
+            action;
+          };
+
+          let progressMetadata: TPayload = null as unknown as TPayload;
+
+          const result = await worker
+            .sendToMethod<TPayload, TPayload>(
+              'transferArrayBuffer',
+              {
+                arrayBuffer: bigArrayBuffer,
+                action,
+              },
+              [bigArrayBuffer]
+            )
+            .onProgress((progress, metadata) => {
+              progressLogger(progress);
+
+              progressMetadata = metadata as TPayload;
+            })
+            .catch<TPayload>((reason) => {
+              errorLogger();
+
+              return reason;
+            });
+
+          if (action === 'resolve') {
+            expect(errorLogger).not.toHaveBeenCalled();
+            expect(progressLogger).not.toHaveBeenCalled();
+          }
+
+          if (action === 'reject' || action === 'cancel') {
+            expect(errorLogger).toHaveBeenCalledTimes(1);
+            expect(progressLogger).not.toHaveBeenCalled();
+          }
+
+          if (action === 'reportProgress') {
+            expect(progressLogger).toHaveBeenCalledWith(50);
+            expect(errorLogger).not.toHaveBeenCalled();
+
+            expect(bigArrayBuffer.byteLength).toEqual(0);
+            expect(progressMetadata.arrayBuffer.byteLength).toEqual(1000000);
+
+            return;
+          }
+
+          expect(result.arrayBuffer.byteLength).toEqual(1000000);
+          expect(bigArrayBuffer.byteLength).toEqual(0);
+        });
       });
     });
   });

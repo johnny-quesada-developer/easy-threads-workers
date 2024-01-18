@@ -1,8 +1,11 @@
 const path = require('path');
 
 module.exports = {
-  mode: 'production',
-  "target": "node",
+  mode: 'development',
+  optimization: {
+    minimize: false,
+  },
+  target: 'node',
   entry: {
     bundle: './src/index.ts',
   },
