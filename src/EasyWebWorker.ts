@@ -390,10 +390,21 @@ export class EasyWebWorker<
       primitiveParameters = [],
     } = config ?? ({} as IWorkerConfig<TPrimitiveParameters>);
 
-    const warmUpWorkers =
-      !maxWorkers || maxWorkers === 1 ? true : _warmUpWorkers;
+    const warmUpWorkers = (() => {
+      if (typeof config?.warmUpWorkers === 'boolean')
+        return config.warmUpWorkers;
 
-    const keepAlive = warmUpWorkers || (_keepAlive ?? false);
+      const defaultWarmUpSingleWorker = maxWorkers === 1;
+      if (defaultWarmUpSingleWorker) return true;
+
+      return false;
+    })();
+
+    let keepAlive = (() => {
+      if (typeof config?.keepAlive === 'boolean') return config.keepAlive;
+
+      return warmUpWorkers;
+    })();
 
     this.config = {
       maxWorkers,
@@ -408,7 +419,13 @@ export class EasyWebWorker<
       primitiveParameters: primitiveParameters as TPrimitiveParameters,
     };
 
-    this.computeWorkerBaseSource();
+    const { isArrayOfWebWorkers } = this.computeWorkerBaseSource();
+
+    keepAlive = isArrayOfWebWorkers ? true : keepAlive;
+
+    // if the source is an array of web workers we need to keep them alive
+    this.config.keepAlive = keepAlive;
+
     this.warmUp();
   }
 
@@ -518,7 +535,7 @@ export class EasyWebWorker<
   };
 
   private getWorkerFromPool = (): Worker => {
-    const { maxWorkers } = this.config;
+    const { maxWorkers, warmUpWorkers } = this.config;
 
     const { messagesQueue } = this;
     const messagesQueueSize = messagesQueue.size;
@@ -526,7 +543,7 @@ export class EasyWebWorker<
     // there are less workers than the maximum allowed, and there is messages in the queue
     if (
       !this.workers.length ||
-      (this.workers.length < maxWorkers && messagesQueueSize)
+      (this.workers.length < maxWorkers && (messagesQueueSize || warmUpWorkers))
     ) {
       const worker = this.createNewWorker();
 
@@ -609,8 +626,7 @@ export class EasyWebWorker<
       ? this.workers.length
       : this.config.maxWorkers;
 
-    // if the source is an array of web workers we need to keep them alive
-    this.config.keepAlive = isArrayOfWebWorkers ? true : this.config.keepAlive;
+    return { isArrayOfWebWorkers };
   };
 
   private RemoveMessageFromQueue(messageId: string) {
