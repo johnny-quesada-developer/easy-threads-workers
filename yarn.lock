@@ -1856,11 +1856,6 @@ camelcase@^6.2.0:
   resolved "https://registry.yarnpkg.com/camelcase/-/camelcase-6.3.0.tgz#5685b95eb209ac9c0c177467778c9c84df58ba9a"
   integrity sha512-Gmy6FhYlCY7uOElZUSbxo2UCDH8owEk996gkbrpsgGtrJLM3J7jGxl9Ic7Qwwj4ivOE5AWZWRMecDdF7hqGjFA==
 
-cancelable-promise-jq@^2.5.0:
-  version "2.5.1"
-  resolved "https://registry.yarnpkg.com/cancelable-promise-jq/-/cancelable-promise-jq-2.5.1.tgz#77d07573ca440eddf236e5cb54d714fcd3e89bb8"
-  integrity sha512-3GJQafrvTAWOcfqyyZd+/u5PvE3pB45zBpBF6tLYDXB8ZcAHMH285txkm1JD4OXyfxSRy4BlVpr5+/XyyI+kWA==
-
 caniuse-lite@^1.0.30001646:
   version "1.0.30001651"
   resolved "https://registry.yarnpkg.com/caniuse-lite/-/caniuse-lite-1.0.30001651.tgz#52de59529e8b02b1aedcaaf5c05d9e23c0c28138"
@@ -2090,6 +2085,11 @@ domexception@^2.0.1:
   integrity sha512-yxJ2mFy/sibVQlu5qHjOkf9J3K6zgmCxgJ94u2EdvDOV09H+32LtRswEcUsmUWN72pVLOEnTSRaIVVzVQgS0dg==
   dependencies:
     webidl-conversions "^5.0.0"
+
+easy-cancelable-promise@^1.0.1:
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/easy-cancelable-promise/-/easy-cancelable-promise-1.0.1.tgz#2cf95c0226e5b2f2af6cd679335085bc719c1fb1"
+  integrity sha512-3vZLA/SbSVv2DKFSvNrDLPZYtQmeNn4itIb3CkhYLs2ZCKK5Ah9/Ty4oAKM/bk9P4Nrpsd5Qhc62FXNXDR2e8A==
 
 ejs@^3.1.10:
   version "3.1.10"

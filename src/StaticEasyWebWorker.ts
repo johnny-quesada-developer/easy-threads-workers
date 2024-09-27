@@ -10,7 +10,7 @@ import {
   TMessagePostType,
   TMessageStatus,
 } from './EasyWebWorker';
-import { Subscription } from 'cancelable-promise-jq';
+import { Subscription } from 'easy-cancelable-promise';
 
 /**
  * Constructor for the StaticEasyWebWorker

@@ -1,6 +1,6 @@
 {
   "name": "easy-threads-workers",
-  "version": "3.1.1",
+  "version": "4.0.0",
   "description": "This library simplifies the creation and management of Worker Threads, a powerful Node.js feature for concurrent processing. If you're a developer yet to explore the world of multithreading in JavaScript, now is the perfect time! Worker Threads are an excellent way to enhance performance and user experience in your Node.js applications, taking them to the next level of efficiency and capability.",
   "main": "lib/bundle.js",
   "types": "lib/index.d.ts",
@@ -54,7 +54,7 @@
     "@types/jest": "^29.2.4",
     "@types/node": "^20.10.8",
     "babel-loader": "^9.1.2",
-    "cancelable-promise-jq": "^2.5.0",
+    "easy-cancelable-promise": "^1.0.1",
     "jest": "^29.3.1",
     "jsdom": "^16.4.0",
     "prettier": "^3.2.4",
@@ -66,10 +66,10 @@
     "webpack-cli": "^5.0.1"
   },
   "peerDependencies": {
-    "cancelable-promise-jq": "^2.5.0"
+    "easy-cancelable-promise": "^1.0.1"
   },
   "peerDependenciesMeta": {
-    "cancelable-promise-jq": {
+    "easy-cancelable-promise": {
       "optional": false
     }
   },

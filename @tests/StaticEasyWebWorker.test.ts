@@ -2,7 +2,7 @@ import { Worker } from 'node:worker_threads';
 import path from 'path';
 import url from 'url';
 import EasyWebWorker from '../src';
-import { createDecoupledPromise } from 'cancelable-promise-jq';
+import { createDecoupledPromise } from 'easy-cancelable-promise';
 
 describe('StaticEasyWebWorker', () => {
   describe('constructor', () => {

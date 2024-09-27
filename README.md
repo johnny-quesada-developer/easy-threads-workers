@@ -2,7 +2,7 @@
 
 ![Image John Avatar](https://raw.githubusercontent.com/johnny-quesada-developer/global-hooks-example/main/public/avatar2.jpeg)
 
-Hello and welcome to **easy-threads-workers** with [cancelable-promise-jq](https://www.npmjs.com/package/cancelable-promise-jq) – your go-to solution for seamless **Worker Threads** integration in Node.js, enhanced with the power of cancelable promises! 🚀
+Hello and welcome to **easy-threads-workers** with [easy-cancelable-promise](https://www.npmjs.com/package/easy-cancelable-promise) – your go-to solution for seamless **Worker Threads** integration in Node.js, enhanced with the power of cancelable promises! 🚀
 
 [Worker Threads](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers) are a powerful feature provided by **Node.js**, allowing for efficient multithreading in a JavaScript environment. With **easy-threads-workers**, you can leverage Worker Threads in your Node.js applications, whether you're working with frameworks or with pure **JavaScript** and **TypeScript**.
 
@@ -11,6 +11,12 @@ Experience the capabilities of Node.js's concurrent processing with Worker Threa
 EasyThreadsWorker supports concurrency mode. This allows you to configure whether a single **EasyThreadsWorker** should use multiple Worker Thread instances, providing robust concurrent processing for code requiring heavy computations. For more detailed information, please see the section below on [concurrency mode](#concurrency-mode).
 
 Check out the running example of **easy-web-workers**, the sibling library of **easy-threads-workers**, featuring **React** and **TypeScript** on [CODEPEN](https://codepen.io/johnnynabetes/full/wvOvygW). Let's explore the capabilities of JavaScript's concurrent processing with Web Workers!
+
+#### IMPORTANT!
+
+If you were previously using **easy-threads-workers** with **cancelable-promise-jq**, please note that the **cancelable-promise-jq** package has been renamed/deprecated. To continue using the latest version of **easy-threads-workers**, simply uninstall **cancelable-promise-jq** and replace all imports with **easy-cancelable-promise**.
+
+I sincerely apologize for any inconvenience this may cause.
 
 ### Creating a Thread Workers never was easier!
 
@@ -61,7 +67,7 @@ const worker = new EasyWebWorker('./worker.js');
 const worker = new EasyWebWorker(new Worker('./worker.js')); // ƒ Worker() { [native code] }
 ```
 
-When working with static files, simply create an instance of **StaticEasyThreadsWorker**. This class provides an interface to continue working with [cancelable-promise-jq](https://www.npmjs.com/package/cancelable-promise-jq) building more complex APIs within your worker.
+When working with static files, simply create an instance of **StaticEasyThreadsWorker**. This class provides an interface to continue working with [easy-cancelable-promise](https://www.npmjs.com/package/easy-cancelable-promise) building more complex APIs within your worker.
 
 ```ts
 const easyWorker = new StaticEasyWebWorker();
@@ -95,7 +101,7 @@ easyWorker.onMessage('readCSV', (message) => {
 });
 ```
 
-**easy-threads-workers** enhances the capabilities of the **Worker Threads** class in Node.js by integrating a pattern of cancelable promises from the [cancelable-promise-jq](https://www.npmjs.com/package/cancelable-promise-jq) library. It simplifies the process for straightforward tasks and, for more complex requirements, allows the integration of easy worker and cancelable promises capabilities into your static workers.
+**easy-threads-workers** enhances the capabilities of the **Worker Threads** class in Node.js by integrating a pattern of cancelable promises from the [easy-cancelable-promise](https://www.npmjs.com/package/easy-cancelable-promise) library. It simplifies the process for straightforward tasks and, for more complex requirements, allows the integration of easy worker and cancelable promises capabilities into your static workers.
 
 Start enhancing your Node.js applications with robust, cancelable promises and easy worker thread integration today! 🌐
 
@@ -379,7 +385,7 @@ Of course this is a very tiny array, but is just to give you and idea, actually 
 
 # Methods
 
-### `EasyWebWorker.reboot(reason?: unknown): CancelableCancelablePromise<void>[]`
+### `EasyWebWorker.reboot(reason?: unknown): CancelablePromise<void>[]`
 
 This method will reboot the worker and cancel all the messages in the queue.
 
